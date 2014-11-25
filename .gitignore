@@ -10,3 +10,4 @@ app/storage/private/*
 notes.txt
 app/config/local/*
 ._.*
+app/config/packages/artdarek/oauth-4-laravel/*
