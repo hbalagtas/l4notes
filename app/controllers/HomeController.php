@@ -20,6 +20,11 @@ class HomeController extends BaseController {
 		return View::make('hello');
 	}
 
+	public function about()
+	{
+		return View::make('about');
+	}
+
 
 	public function loginWithGoogle() {
 
@@ -42,10 +47,11 @@ class HomeController extends BaseController {
 
 	        $message = 'Your unique Google user id is: ' . $result['id'] . ' and your name is ' . $result['name'];
 	        #echo $message. "<br/>";
-	        $user = User::find($result['id'];
+	        
+	        $user = User::where('email', $result['email'])->first();
+	       
 	        if ( !$user ) {
-	        	$user = new User;
-	        	$user->id = $result['id'];
+	        	$user = new User;	        	
 	        	$user->email = $result['email'];
 	        	$user->name = $result['name'];
 	        	$user->given_name = $result['given_name'];
@@ -54,7 +60,7 @@ class HomeController extends BaseController {
 	        	$user->save();
 	        }
 
-	        Auth::login($user);*/
+	        Auth::login($user);
 	        
 
 	        //Var_dump
@@ -77,6 +83,111 @@ class HomeController extends BaseController {
 	        // return to google login url
 	        return Redirect::to( (string)$url );
 	    }
+	}
+
+
+	public function ImportTags()
+	{
+		$tomboy_path =  app_path() . '/storage/private/tomboy-notes/';
+				
+			$files = FindFiles($tomboy_path, "note");
+			$taglist = array();
+			foreach($files as $key => $file){
+				$raw_xml = file_get_contents($key);
+				$parsed_xml = Parser::xml($raw_xml);
+				
+				if (isset($parsed_xml['tags'])){			
+					foreach($parsed_xml['tags'] as $tags){
+						if ( is_array($tags)){
+							foreach($tags as $tag){
+								$tag = str_replace('system:', '', $tag);
+								$tag = str_replace('notebook:', '', $tag);
+								$taglist = array_merge($taglist, array($tag) );
+							}
+						} else {
+							$tags = str_replace('system:', '', $tags);
+							$tags = str_replace('notebook:', '', $tags);
+							$taglist = array_merge($taglist, array($tags) );
+						}					
+					}			
+				}			
+			}
+
+			$taglist = array_unique($taglist);
+			foreach($taglist as $tag){
+				Tag::create(['name' => $tag]);
+				echo "$tag <br />";
+			}
+			return '<h3>Importing tags complete</h3>';
+	}
+
+	public function ImportNotes()
+	{
+		$tomboy_path =  app_path() . '/storage/private/tomboy-notes/';
+				
+			$files = FindFiles($tomboy_path, "note");
+			
+			foreach($files as $key => $file){
+				$raw_xml = file_get_contents($key);
+				$parsed_xml = Parser::xml($raw_xml);
+				echo "Importing $key <br/>";
+				$tomboy_id = str_replace('.note', '', basename($key));
+
+				//Skip if already imported
+				if ( Note::where('tomboy_id', $tomboy_id)->count() > 0){
+					continue;
+				}
+				$taglist = array();
+				if (isset($parsed_xml['tags'])){			
+					foreach($parsed_xml['tags'] as $tags){
+						if ( is_array($tags)){
+							foreach($tags as $tag){
+								$tag = str_replace('system:', '', $tag);
+								$tag = str_replace('notebook:', '', $tag);
+								$taglist = array_merge($taglist, array($tag) );
+							}
+						} else {
+							$tags = str_replace('system:', '', $tags);
+							$tags = str_replace('notebook:', '', $tags);
+							$taglist = array_merge($taglist, array($tags) );
+						}					
+					}			
+				}	
+				if ( isset($parsed_xml["title"]) && !empty($parsed_xml["title"])){
+					$note = new Note;
+					$note->title = (isset($parsed_xml["title"])?$parsed_xml["title"]:'');
+					if ( isset($parsed_xml["text"]) ){
+						if (is_array($parsed_xml["text"]["note-content"])){
+							#var_dump($parsed_xml);
+							$note->content = '';
+						} else {
+							$note->content = $parsed_xml["text"]["note-content"];	
+						}
+					}
+					
+					$note->author_id = 1;
+					$note->tomboy_id = $tomboy_id;
+					
+					if (isset($parsed_xml['last-change-date'])){
+						$note->updated_at = Carbon\Carbon::parse($parsed_xml['last-change-date']);
+					}
+					
+					if (isset($parsed_xml['create-date'])){
+						$note->created_at = Carbon\Carbon::parse($parsed_xml['create-date']);
+					}
+					
+
+					$note->save();
+					if (count($taglist)>0){
+						foreach( $taglist as $tag ){
+							$t = Tag::where('name', $tag)->first();
+							$note->tags()->attach($t);
+						}
+					}
+				}
+			}
+			
+			return '<h3>Importing notes complete</h3>';
 	}
 
 }

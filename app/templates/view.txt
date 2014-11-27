@@ -1,1 +1,7 @@
 $PATH$
+@extends('layouts.master')
+
+@section('page_title', 'TITLE')
+
+@section('content')
+@stop

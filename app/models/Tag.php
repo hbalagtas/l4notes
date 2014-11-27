@@ -5,4 +5,9 @@ class Tag extends \Eloquent {
 	public $timestamps = false;
 
 	protected $rules = ['name' => 'required|unique:tags'];
+
+	public function notes()
+	{
+		return $this->belongsToMany('Note');
+	}
 }
