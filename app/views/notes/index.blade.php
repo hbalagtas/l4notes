@@ -13,7 +13,7 @@
 	
 		<?php 
 			$toggle = 'in'; 
-			$panel = "info";
+			$panel = 'info';
 		?>
 
 		@foreach($notes as $note)		
